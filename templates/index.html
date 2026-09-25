@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Meeting Coach</title>
+  <title>สรุปการประชุม AI</title>
   <style>
     body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: #f5f5f7; margin: 0; padding: 40px 16px; }
     .card { max-width: 480px; margin: 0 auto; background: #fff; border-radius: 12px; padding: 32px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
@@ -18,8 +18,8 @@
 </head>
 <body>
   <div class="card">
-    <h1>🎙️ Meeting Coach</h1>
-    <p class="hint">อัปโหลดไฟล์เสียงหรือวิดีโอการประชุม ระบบจะถอดเสียงและสรุปให้คะแนนอัตโนมัติ (รองรับไทย/อังกฤษ)</p>
+    <h1>📝 สรุปการประชุม AI</h1>
+    <p class="hint">อัปโหลดไฟล์เสียงหรือวิดีโอการประชุม ระบบจะถอดเสียงและสรุปประเด็นสำคัญให้อัตโนมัติ (รองรับไทย/อังกฤษ)</p>
 
     {% with messages = get_flashed_messages() %}
       {% if messages %}
@@ -31,7 +31,7 @@
 
     <form method="post" action="/analyze" enctype="multipart/form-data" onsubmit="document.getElementById('status').style.display='block'; this.querySelector('button').disabled=true;">
       <input type="file" name="audio_file" accept="audio/*,video/*" required>
-      <button type="submit">วิเคราะห์การประชุม</button>
+      <button type="submit">สรุปการประชุม</button>
     </form>
     <p id="status">กำลังประมวลผล... ไฟล์ยิ่งยาว ยิ่งใช้เวลานาน กรุณาอย่าปิดหน้านี้</p>
   </div>
