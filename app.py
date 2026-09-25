@@ -1,5 +1,6 @@
 import os
 import tempfile
+import time
 from pathlib import Path
 
 from flask import Flask, render_template, request, redirect, url_for, flash
@@ -24,13 +25,20 @@ def get_whisper_model():
     """โหลดโมเดลครั้งเดียวแล้วเก็บไว้ใช้ซ้ำ (โหลดครั้งแรกจะช้าเพราะต้องดาวน์โหลดโมเดล)"""
     global _whisper_model
     if _whisper_model is None:
-        _whisper_model = WhisperModel(MODEL_SIZE, device="cpu", compute_type="int8")
+        cpu_threads = os.cpu_count() or 2  # ใช้ core ทั้งหมดที่มีอยู่ ไม่ต้องอัปเกรดแพลน
+        _whisper_model = WhisperModel(
+            MODEL_SIZE, device="cpu", compute_type="int8", cpu_threads=cpu_threads
+        )
     return _whisper_model
 
 
 def transcribe_audio(audio_path: str) -> str:
     model = get_whisper_model()
-    segments, info = model.transcribe(audio_path, beam_size=5)
+    segments, info = model.transcribe(
+        audio_path,
+        beam_size=1,        # ลดจาก 5 -> 1: เร็วขึ้นมาก แลกความแม่นยำเล็กน้อย
+        vad_filter=True,    # ข้ามช่วงเงียบ/ไม่มีคนพูดไปเลย ไม่เสียเวลาถอดเสียงส่วนที่ไม่มีอะไร
+    )
     lines = [f"[{seg.start:6.1f}s] {seg.text.strip()}" for seg in segments]
     return "\n".join(lines)
 
@@ -63,12 +71,28 @@ def analyze_transcript(transcript: str) -> str:
 (2-3 ข้อที่ทำได้จริงในครั้งหน้า)
 """
 
-    response = client.models.generate_content(
-        model="gemini-3.8-flash",
-        contents=prompt,
-    )
-    return response.text
+    max_retries = 4
+    delay_seconds = 3
+    last_error = None
 
+    for attempt in range(max_retries):
+        try:
+            response = client.models.generate_content(
+                model="gemini-3.8-flash",
+                contents=prompt,
+            )
+            return response.text
+        except Exception as exc:
+            last_error = exc
+            # ถ้าเป็น error ชั่วคราวจากฝั่ง Google (โอเวอร์โหลด) ให้รอแล้วลองใหม่
+            if "503" in str(exc) or "UNAVAILABLE" in str(exc) or "overloaded" in str(exc).lower():
+                print(f"      Gemini โอเวอร์โหลด (ลองครั้งที่ {attempt + 1}/{max_retries}), รอ {delay_seconds}s...")
+                time.sleep(delay_seconds)
+                delay_seconds *= 2  # เพิ่มเวลารอเป็นเท่าตัวทุกครั้ง (exponential backoff)
+                continue
+            raise  # error ประเภทอื่น (เช่น key ผิด) ไม่ต้อง retry ให้โยนออกไปเลย
+
+    raise last_error
 
 @app.route("/", methods=["GET"])
 def index():
