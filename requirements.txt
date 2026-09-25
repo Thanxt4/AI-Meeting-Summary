@@ -1,0 +1,4 @@
+flask
+faster-whisper
+google-genai
+gunicorn
